@@ -7,7 +7,7 @@ class Dynamo
 	
 	public function __construct()
 	{
-		$this->EE = get_instance();
+		$this->EE =& get_instance();
 	}
 	
 	/* TAGS */
@@ -106,6 +106,18 @@ class Dynamo
 		foreach (array('ACT', 'XID', 'RET', 'site_id', 'return', 'submit') as $key)
 		{
 			unset($_POST[$key]);
+		}
+		
+		//@TODO convert some of POST like arrays -> pipe delimited lists
+		foreach ($_POST as $key => $value)
+		{
+			if (substr($key, 0, 7) !== 'search:')
+			{
+				if (is_array($value))
+				{
+					$_POST[$key] = implode('|', $value);
+				}
+			}
 		}
 		
 		$parameters = base64_encode(serialize($this->EE->security->xss_clean($_POST)));
