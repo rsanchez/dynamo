@@ -11,7 +11,7 @@ For more on filtering content with dynamic parameters, see this great tutorial: 
 * Copy the /system/expressionengine/third_party/dynamo/ folder to your /system/expressionengine/third_party/ folder
 
 ## Form
-Use this form to submit your dynamic parameters. It will add your search parameters to the database, and redirect you to your results template with the search_id.
+Use this form to submit your dynamic parameters. It will add your search parameters to the database, and redirect you to your results template with the search_id. As of version 1.0.1, you can also submit arrays (like category[], for instance) which will automatically be converted into the pipe delimited format that entries parameters accept.
 
 	{exp:dynamo:form return="site/entries"}
 		<input type="text" name="search:your_custom_field">
@@ -19,6 +19,10 @@ Use this form to submit your dynamic parameters. It will add your search paramet
 			<option value="10">10</option>
 			<option value="20">20</option>
 			<option value="50">50</option>
+		</select>
+		<select name="category[]" multi="multi">
+			<option value="1">Dogs</option>
+			<option value="2">Cat</option>
 		</select>
 		<input type="submit">
 	{/exp:dynamo:form}
@@ -52,6 +56,8 @@ Use this tag in your results template to display the matching channel entries. I
 	{/exp:dynamo:entries}
 
 ## Form on Results Page
+If you add a valid search_id to the form tag, it will inherit all of the search's dynamic parameters as tag variables.
+
 	{exp:dynamo:form return="site/entries" search_id="{segment_3}"}
 		<input type="text" name="search:your_custom_field" value="{search:your_custom_field}">
 		<select name="limit">
