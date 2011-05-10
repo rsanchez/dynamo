@@ -50,6 +50,51 @@ class Dynamo
 			}
 		}
 		
+		//added so you could do array checkboxes with {if {selected:category="10"}}{/if}
+		foreach ($this->EE->TMPL->var_single as $var)
+		{
+			if (preg_match('/^selected:(.+?)\s*==?\s*([\042\047])?(.*)\\2$/', $var, $match))
+			{
+				$array = (strpos($vars[$match[1]], '|') !== FALSE) ? explode('|', $vars[$match[1]]) : array($vars[$match[1]]);
+				
+				$vars[$var] = (in_array($match[3], $array)) ? 1 : 0;
+			}
+		}
+		
+		/*
+		//added so you could do array checkboxes with {if selected:category == 10}{/if}
+		if (preg_match_all('/{\s*if\s+selected:(.*?)\s*(==|!=)\s*([\042\047])?(.*?)\\1?\s*}(.*?){\/if\s*}/s', $this->EE->TMPL->tagdata, $matches))
+		{
+			foreach ($matches[0] as $i => $replace)
+			{
+				$field = $matches[1][$i];
+				$operator = $matches[2][$i];
+				$is = $matches[4][$i];
+				$tagdata = $matches[5][$i];
+				
+				if (isset($vars[$field]))
+				{
+					$array = (strpos($vars[$field], '|') !== FALSE) ? explode('|', $vars[$field]) : array($vars[$field]);
+					
+					$cond = in_array($is, $array);
+					
+					if ($operator === '!=')
+					{
+						$cond = ! $cond;
+					}
+					
+					$tagdata = ($cond) ? $tagdata : '';
+				}
+				else
+				{
+					$tagdata = '';
+				}
+				
+				$this->EE->TMPL->tagdata = str_replace($replace, $tagdata, $this->EE->TMPL->tagdata);
+			}
+		}
+		*/
+		
 		return $this->EE->functions->form_declaration($form)
 			.$this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, array($vars))
 			.form_close();
