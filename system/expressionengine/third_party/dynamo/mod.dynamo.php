@@ -50,6 +50,17 @@ class Dynamo
 			}
 		}
 		
+		//added so you could do array checkboxes with {if {selected:category="10"}}{/if}
+		foreach ($this->EE->TMPL->var_single as $var)
+		{
+			if (preg_match('/^selected:(.+?)\s*==?\s*([\042\047])?(.*)\\2$/', $var, $match))
+			{
+				$array = (strpos($vars[$match[1]], '|') !== FALSE) ? explode('|', $vars[$match[1]]) : array($vars[$match[1]]);
+				
+				$vars[$var] = (in_array($match[3], $array)) ? 1 : 0;
+			}
+		}
+		
 		return $this->EE->functions->form_declaration($form)
 			.$this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, array($vars))
 			.form_close();
@@ -61,10 +72,30 @@ class Dynamo
 		{
 			require_once APPPATH.'modules/channel/mod.channel'.EXT;
 		
-			$this->channel = new Channel();
+			$this->channel = new Channel;
 		}
 		
 		$_POST = array_merge($_POST, $this->search($this->EE->TMPL->fetch_param('search_id')));
+		
+		$this->EE->TMPL->tagdata = $this->EE->TMPL->assign_relationship_data($this->EE->TMPL->tagdata);
+		
+		if (count($this->EE->TMPL->related_markers) > 0)
+		{
+			foreach ($this->EE->TMPL->related_markers as $marker)
+			{
+				if ( ! isset($this->EE->TMPL->var_single[$marker]))
+				{
+					$this->EE->TMPL->var_single[$marker] = $marker;
+				}
+			}
+		}
+
+		if ($this->EE->TMPL->related_id)
+		{
+			$this->EE->TMPL->var_single[$this->EE->TMPL->related_id] = $this->EE->TMPL->related_id;
+			
+			$this->EE->TMPL->related_id = '';
+		}
 		
 		return $this->channel->entries();
 	}
@@ -108,7 +139,7 @@ class Dynamo
 			unset($_POST[$key]);
 		}
 		
-		//@TODO convert some of POST like arrays -> pipe delimited lists
+		//convert some of POST like arrays -> pipe delimited lists
 		foreach ($_POST as $key => $value)
 		{
 			if (substr($key, 0, 7) !== 'search:')
@@ -120,6 +151,7 @@ class Dynamo
 			}
 		}
 		
+		//clean, serialize, and encode the search parameter array for storage
 		$parameters = base64_encode(serialize($this->EE->security->xss_clean($_POST)));
 		
 		//get matching search if it already exists
@@ -129,6 +161,7 @@ class Dynamo
 					->get()
 					->row('search_id');
 		
+		//generate a new search id
 		if ( ! $search_id)
 		{
 			$search_id = $this->EE->functions->random('md5');
@@ -136,7 +169,7 @@ class Dynamo
 			$this->EE->db->insert('dynamo', array(
 				'search_id' => $search_id,
 				'date' => $this->EE->localize->now,
-				'parameters' => $parameters
+				'parameters' => $parameters,
 			));
 		}
 		
