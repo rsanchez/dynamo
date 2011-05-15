@@ -20,7 +20,7 @@ Use this form to submit your dynamic parameters. It will add your search paramet
 			<option value="20">20</option>
 			<option value="50">50</option>
 		</select>
-		<select name="category[]" multi="multi">
+		<select name="category[]" multiple="multiple">
 			<option value="1">Dogs</option>
 			<option value="2">Cat</option>
 		</select>
