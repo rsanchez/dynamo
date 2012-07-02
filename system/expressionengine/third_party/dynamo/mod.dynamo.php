@@ -162,6 +162,11 @@ class Dynamo
 			}
 		}
 		
+		if ( ! isset($vars['keywords']))
+		{
+			$vars['keywords'] = '';
+		}
+		
 		return $this->EE->functions->form_declaration($form)
 			.$this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, array($vars))
 			.form_close();
@@ -196,6 +201,11 @@ class Dynamo
 			$this->EE->TMPL->var_single[$this->EE->TMPL->related_id] = $this->EE->TMPL->related_id;
 			
 			$this->EE->TMPL->related_id = '';
+		}
+		
+		if (isset($_POST['entry_ids']))
+		{
+			$this->EE->TMPL->tagparams['entry_id'] = implode('|', $_POST['entry_ids']);
 		}
 		
 		return $this->channel->entries();
@@ -260,6 +270,42 @@ class Dynamo
 			}
 		}
 		
+		if ($keywords = $this->EE->input->post('keywords'))
+		{
+			$this->EE->load->library('dynamo_cp', NULL, 'cp');
+			
+			$this->EE->load->model('search_model');
+			
+			$search = array(
+				'channel_id' => '',
+				'cat_id' => '',
+				'status' => '',
+				'date_range' => '',	
+				'author_id' => '',
+				'search_in' => $this->EE->input->post('search_in') ? $this->EE->input->post('search_in') : 'body',
+				'exact_match' => $this->EE->input->post('exact_match'),
+				'keywords' => $keywords,
+				'search_keywords' => ($this->EE->config->item('auto_convert_high_ascii') === 'y') ? ascii_to_entities($keywords) : $keywords,
+				'_hook_wheres' => array(),
+			);
+			
+			$data = $this->EE->search_model->build_main_query($search, array('title' => 'asc'), FALSE);
+			
+			if ($data['result_obj']->num_rows() === 0)
+			{
+				$_POST['entry_ids'] = array('X');
+			}
+			else
+			{
+				$_POST['entry_ids'] = array();
+				
+				foreach ($data['result_obj']->result() as $row)
+				{
+					$_POST['entry_ids'][] = $row->entry_id;
+				}
+			}
+		}
+		
 		//clean, serialize, and encode the search parameter array for storage
 		$parameters = base64_encode(serialize($_POST));
 		
@@ -282,12 +328,7 @@ class Dynamo
 			));
 		}
 		
-		if (substr($return, -1) != '/')
-		{
-			$return = $return.'/';
-		}
-		
-		$this->EE->functions->redirect($return.$search_id);
+		$this->EE->functions->redirect(rtrim($return, '/').'/'.$search_id);
 	}
 	
 	/* PRIVATE METHODS */

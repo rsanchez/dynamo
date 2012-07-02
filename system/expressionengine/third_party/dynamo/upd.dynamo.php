@@ -51,6 +51,7 @@ class Dynamo_upd
 	
 		$this->EE->dbforge->add_field($fields);
 		$this->EE->dbforge->add_key('search_id', TRUE);
+		$this->EE->dbforge->add_key('date');
 	
 		$this->EE->dbforge->create_table('dynamo');
 		
