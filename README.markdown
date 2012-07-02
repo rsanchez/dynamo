@@ -27,15 +27,36 @@ Use this form to submit your dynamic parameters. It will add your search paramet
 		<input type="submit">
 	{/exp:dynamo:form}
 
-## Form Parameters
+### Form Parameters
 
 **return**
 This is the location of your dynamo:entries template. The search_id will be added as the last segment.
+
 	return="site/entries"
 
 **search_id**
 If you are displaying a form on your results page, and wish to show the submitted values.
+
 	dynamic_parameters="search:your_custom_field|limit"
+
+### Form Inputs
+
+**keywords**
+
+	<input type="text" name="keywords" value="{keywords}">
+	
+### Form Tags
+
+Display options for the following fieldtypes: Select Dropdown, Multi Select, Radio Buttons, Checkboxes, Text, P&T Dropdown, P&T Multiselect, P&T Pill, P&T Radio Buttons, P&T Checkboxes, and P&T Switch.
+
+	<select name="search:your_field_name">
+	{options:your_field_name}
+		<option value="{option_value}"{if search:your_field_name == option_value} selected="selected"{/if}>{option_name}</option>
+	{/option:your_field_name}
+	</select>
+	
+
+### Form Example
 
 	{exp:dynamo:form return="site/entries" search_id="{segment_3}"}
 		<input type="text" name="search:your_custom_field" value="{search:your_custom_field}">
