@@ -2,7 +2,7 @@
 
 class Dynamo_upd
 {
-	public $version = '1.0.2';
+	public $version = '1.0.3';
 	
 	/**
 	 * Dynamo_upd
@@ -12,7 +12,7 @@ class Dynamo_upd
 	 */
 	public function __construct()
 	{
-		$this->EE = get_instance();
+		$this->EE =& get_instance();
 	}
 	
 	/**
