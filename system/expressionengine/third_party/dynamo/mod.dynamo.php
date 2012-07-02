@@ -14,18 +14,13 @@ class Dynamo
 	
 	public function form()
 	{
-		if ( ! $this->EE->TMPL->fetch_param('return'))
-		{
-			$this->EE->output->show_user_error('general', $this->EE->lang->line('no_return'));
-		}
-		
 		$this->EE->load->helper(array('form', 'url'));
 		
 		$form = array(
 			'hidden_fields' => array(
 				'ACT' => $this->EE->functions->fetch_action_id('Dynamo', 'form_submit'),
 				'RET' => current_url(),
-				'return' => $this->EE->TMPL->fetch_param('return'),
+				'return' => $this->EE->TMPL->fetch_param('return', $this->EE->uri->uri_string()),
 			),
 		);
 		
@@ -58,6 +53,112 @@ class Dynamo
 				$array = (strpos($vars[$match[1]], '|') !== FALSE) ? explode('|', $vars[$match[1]]) : array($vars[$match[1]]);
 				
 				$vars[$var] = (in_array($match[3], $array)) ? 1 : 0;
+			}
+		}
+		
+		$option_fields = array();
+		
+		foreach (array_keys($this->EE->TMPL->var_pair) as $full_name)
+		{
+			if (strncmp($full_name, 'options:', 8) !== 0)
+			{
+				continue;
+			}
+			
+			$option_fields[substr($full_name, 8)] = NULL;
+		}
+		
+		if ($option_fields)
+		{
+			$query = $this->EE->db->select('field_name, field_type, field_list_items, field_settings, field_id')
+						->where_in('field_name', array_keys($option_fields))
+						->get('channel_fields');
+			
+			foreach ($query->result() as $row)
+			{
+				$options = array();
+				
+				switch($row->field_type)
+				{
+					case 'pt_checkboxes':
+					case 'pt_radio_buttons':
+					case 'pt_dropdown':
+					case 'pt_multiselect':
+					case 'pt_pill':
+						
+						$field_settings = @unserialize(base64_decode($row->field_settings));
+						
+						if (isset($field_settings['options']))
+						{
+							$options = $field_settings['options'];
+						}
+						
+						break;
+					case 'pt_switch':
+						
+						$field_settings = @unserialize(base64_decode($row->field_settings));
+						
+						if (is_array($field_settings))
+						{
+							$options = array(
+								$field_settings['off_val'] => $field_settings['off_label'],
+								$field_settings['on_val'] => $field_settings['on_label'],
+							);
+						}
+						
+						break;
+					case 'text':
+						
+						$channel_query = $this->EE->db->distinct()
+										->select('field_id_'.$row->field_id)
+										->where('field_id_'.$row->field_id.' !=', '')
+										->get('channel_data');
+						
+						foreach ($channel_query->result() as $row)
+						{
+							$options[$row->{'field_id_'.$row->field_id}] = $row->{'field_id_'.$row->field_id};
+						}
+						
+						$channel_query->free_result();
+						
+						break;
+					
+					default:
+					
+						if ($row->field_list_items)
+						{
+							foreach (preg_split('/[\r\n]+/', $row->field_list_items) as $option_value)
+							{
+								$options[$option_value] = $option_value;
+							}
+						}
+						
+						break;
+				}
+				
+				$option_fields[$row->field_name] = $options;
+			}
+			
+			$query->free_result();
+			
+			foreach ($option_fields as $field_name => $options)
+			{
+				if (is_null($options))
+				{
+					$vars['options:'.$field_name] = array(array());
+				}
+				else
+				{
+					$vars['options:'.$field_name] = array();
+					
+					foreach ($options as $option_value => $option_name)
+					{
+						$vars['options:'.$field_name][] = array(
+							'option_value' => $option_value,
+							'option_name' => $option_name,
+						);
+					}
+				}
 			}
 		}
 		
@@ -139,20 +240,28 @@ class Dynamo
 			unset($_POST[$key]);
 		}
 		
+		$_POST = $this->EE->security->xss_clean($_POST);
+		
 		//convert some of POST like arrays -> pipe delimited lists
 		foreach ($_POST as $key => $value)
 		{
-			if (substr($key, 0, 7) !== 'search:')
+			if (substr($key, 0, 7) !== 'search:' && is_array($value))
 			{
-				if (is_array($value))
+				foreach ($value as $_key => $_value)
 				{
-					$_POST[$key] = implode('|', $value);
+					//this is so we can keep 0 and '0', but get rid of '', NULL, and FALSE
+					if ((string) $_value === '')
+					{
+						unset($value[$_key]);
+					}
 				}
+				
+				$_POST[$key] = implode('|', $value);
 			}
 		}
 		
 		//clean, serialize, and encode the search parameter array for storage
-		$parameters = base64_encode(serialize($this->EE->security->xss_clean($_POST)));
+		$parameters = base64_encode(serialize($_POST));
 		
 		//get matching search if it already exists
 		$search_id = $this->EE->db->select('search_id')
