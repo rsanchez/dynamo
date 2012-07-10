@@ -70,94 +70,17 @@ class Dynamo
 		
 		if ($option_fields)
 		{
-			$query = $this->EE->db->select('field_name, field_type, field_list_items, field_settings, field_id')
-						->where_in('field_name', array_keys($option_fields))
-						->get('channel_fields');
+			$options = $this->get_options(array_keys($option_fields));
 			
-			foreach ($query->result() as $row)
+			foreach ($options as $field_name => $field_options)
 			{
-				$options = array();
-				
-				switch($row->field_type)
-				{
-					case 'pt_checkboxes':
-					case 'pt_radio_buttons':
-					case 'pt_dropdown':
-					case 'pt_multiselect':
-					case 'pt_pill':
-						
-						$field_settings = @unserialize(base64_decode($row->field_settings));
-						
-						if (isset($field_settings['options']))
-						{
-							$options = $field_settings['options'];
-						}
-						
-						break;
-					case 'pt_switch':
-						
-						$field_settings = @unserialize(base64_decode($row->field_settings));
-						
-						if (is_array($field_settings))
-						{
-							$options = array(
-								$field_settings['off_val'] => $field_settings['off_label'],
-								$field_settings['on_val'] => $field_settings['on_label'],
-							);
-						}
-						
-						break;
-					case 'text':
-						
-						$channel_query = $this->EE->db->distinct()
-										->select('field_id_'.$row->field_id)
-										->where('field_id_'.$row->field_id.' !=', '')
-										->get('channel_data');
-						
-						foreach ($channel_query->result() as $row)
-						{
-							$options[$row->{'field_id_'.$row->field_id}] = $row->{'field_id_'.$row->field_id};
-						}
-						
-						$channel_query->free_result();
-						
-						break;
-					
-					default:
-					
-						if ($row->field_list_items)
-						{
-							foreach (preg_split('/[\r\n]+/', $row->field_list_items) as $option_value)
-							{
-								$options[$option_value] = $option_value;
-							}
-						}
-						
-						break;
-				}
-				
-				$option_fields[$row->field_name] = $options;
-			}
-			
-			$query->free_result();
-			
-			foreach ($option_fields as $field_name => $options)
-			{
-				if (is_null($options))
+				if (is_null($field_options))
 				{
 					$vars['options:'.$field_name] = array(array());
 				}
 				else
 				{
-					$vars['options:'.$field_name] = array();
-					
-					foreach ($options as $option_value => $option_name)
-					{
-						$vars['options:'.$field_name][] = array(
-							'option_value' => $option_value,
-							'option_name' => $option_name,
-						);
-					}
+					$vars['options:'.$field_name] = $field_options;
 				}
 			}
 		}
@@ -226,6 +149,34 @@ class Dynamo
 		}
 		
 		return (count($data) > 0) ? $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, $data) : $this->EE->TMPL->no_results();
+	}
+	
+	/**
+	 * Options
+	 *
+	 * {exp:dynamo:options field="field_name"}
+	 *    <option value="{option_value}">{option_name}</option>
+	 * {/exp:dynamo:options}
+	 * 
+	 * @return string
+	 */
+	public function options()
+	{
+		return $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, array_shift($this->get_options($this->EE->TMPL->fetch_param('field'))));
+	}
+	
+	/**
+	 * Pre-fetch options
+	 *
+	 * Use prior to using many standalone {exp:dynamo:options} tags to avoid multiple options queries
+	 * 
+	 * @return string
+	 */
+	public function prefetch_options()
+	{
+		$this->get_options(explode('|', $this->EE->TMPL->fetch_params('fields')));
+		
+		return '';
 	}
 	
 	/* FORM ACTIONS */
@@ -368,6 +319,148 @@ class Dynamo
 		}
 		
 		return array();
+	}
+	
+	/**
+	 * Get field options
+	 *
+	 * 	array(
+	 * 		'field_name' => array(
+	 * 			array(
+	 * 				array('option_value' => 'foo', 'option_name' => 'bar'),
+	 * 				array('option_value' => 'foo2', 'option_name' => 'bar2')
+	 * 			)
+	 * 			array(
+	 * 				array('option_value' => 'foo', 'option_name' => 'bar'),
+	 * 				array('option_value' => 'foo2', 'option_name' => 'bar2')
+	 * 			)
+	 * 		)
+	 * 		'field_name2' => array(
+	 * 			array(
+	 * 				array('option_value' => 'foo', 'option_name' => 'bar'),
+	 * 				array('option_value' => 'foo2', 'option_name' => 'bar2')
+	 * 			)
+	 * 			array(
+	 * 				array('option_value' => 'foo', 'option_name' => 'bar'),
+	 * 				array('option_value' => 'foo2', 'option_name' => 'bar2')
+	 * 			)
+	 * 		)
+	 * 	)
+	 * 
+	 * @param string|array $field_name a field name or an array of field names
+	 * 
+	 * @return array
+	 */
+	protected function get_options($field_names)
+	{
+		static $cache = array();
+		
+		if ( ! is_array($field_names))
+		{
+			$field_names = array($field_names);
+		}
+		
+		$keys = array_flip($field_names);
+		
+		//all the fields are in the cache
+		if ( ! array_diff_key($keys, $cache))
+		{
+			return array_intersect_key($cache, $keys);
+		}
+		
+		$this->EE->db->where_in('field_name', $field_names);
+		
+		$options = array();
+		
+		$query = $this->EE->db->select('field_name, field_type, field_list_items, field_settings, field_id')
+					->get('channel_fields');
+		
+		foreach ($query->result() as $row)
+		{
+			$field_options = array();
+			
+			switch($row->field_type)
+			{
+				case 'pt_checkboxes':
+				case 'pt_radio_buttons':
+				case 'pt_dropdown':
+				case 'pt_multiselect':
+				case 'pt_pill':
+					
+					$field_settings = @unserialize(base64_decode($row->field_settings));
+					
+					if (isset($field_settings['options']))
+					{
+						foreach ($field_settings['options'] as $option_value => $option_name)
+						{
+							$field_options[] = array(
+								'option_value' => $option_value,
+								'option_name' => $option_name,
+							);
+						}
+					}
+					
+					break;
+				case 'pt_switch':
+					
+					$field_settings = @unserialize(base64_decode($row->field_settings));
+					
+					if (is_array($field_settings))
+					{
+						$field_options = array(
+							array(
+								'option_value' => $field_settings['off_val'],
+								'option_name' => $field_settings['off_label'],
+							),
+							array(
+								'option_value' => $field_settings['on_val'],
+								'option_name' => $field_settings['on_label'],
+							),
+						);
+					}
+					
+					break;
+				case 'text':
+					
+					$channel_query = $this->EE->db->distinct()
+									->select('field_id_'.$row->field_id)
+									->where('field_id_'.$row->field_id.' !=', '')
+									->get('channel_data');
+					
+					foreach ($channel_query->result() as $row)
+					{
+						$field_options[] = array(
+							'option_value' => $row->{'field_id_'.$row->field_id},
+							'option_name' => $row->{'field_id_'.$row->field_id},
+						);
+					}
+					
+					$channel_query->free_result();
+					
+					break;
+				
+				default:
+				
+					if ($row->field_list_items)
+					{
+						foreach (preg_split('/[\r\n]+/', $row->field_list_items) as $option_value)
+						{
+							$field_options[] = array(
+								'option_value' => $option_value,
+								'option_name' => $option_value,
+							);
+						}
+					}
+					
+					break;
+			}
+			
+			$cache[$row->field_name] = $options[$row->field_name] = $field_options;
+		}
+		
+		$query->free_result();
+		
+		return $options;
 	}
 }
 
