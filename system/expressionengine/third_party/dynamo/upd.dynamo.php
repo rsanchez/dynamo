@@ -2,7 +2,7 @@
 
 class Dynamo_upd
 {
-	public $version = '1.0.3';
+	public $version = '1.0.4';
 	
 	/**
 	 * Dynamo_upd
