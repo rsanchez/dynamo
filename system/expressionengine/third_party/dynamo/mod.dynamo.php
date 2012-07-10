@@ -274,6 +274,8 @@ class Dynamo
 		{
 			$this->EE->load->library('dynamo_cp', NULL, 'cp');
 			
+			$this->EE->load->helper('text');
+			
 			$this->EE->load->model('search_model');
 			
 			$search = array(
