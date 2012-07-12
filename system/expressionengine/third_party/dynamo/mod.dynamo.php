@@ -90,6 +90,11 @@ class Dynamo
 			$vars['keywords'] = '';
 		}
 		
+		foreach (array_keys($vars) as $key)
+		{
+			$vars['dynamo:'.$key] = $vars[$key];
+		}
+		
 		return $this->EE->functions->form_declaration($form)
 			.$this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, array($vars))
 			.form_close();
@@ -179,6 +184,54 @@ class Dynamo
 		return '';
 	}
 	
+	public function statuses()
+	{
+		$channels = explode('|', $this->EE->TMPL->fetch_param('channel'));
+		
+		if ($this->EE->TMPL->fetch_param('include'))
+		{
+			$include = explode('|', $this->EE->TMPL->fetch_param('include'));
+			
+			$this->EE->db->where_in('status', $include);
+		}
+		
+		if ($this->EE->TMPL->fetch_param('exclude'))
+		{
+			$exclude = explode('|', $this->EE->TMPL->fetch_param('exclude'));
+			
+			$this->EE->db->where_not_in('status', $exclude);
+		}
+		
+		$query = $this->EE->db->select('statuses.*')
+					->where_in('channel_name', $channels)
+					->join('channels', 'channels.status_group = statuses.group_id')
+					->get('statuses');
+		
+		$result = $query->result_array();
+		
+		$this->variable_prefix($result);
+		
+		return $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, $result);
+	}
+	
+	public function increment()
+	{
+		$from = (int) $this->EE->TMPL->fetch_param('from', 1);
+		
+		$to = (int) $this->EE->TMPL->fetch_param('to', 0);
+		
+		$vars = array();
+		
+		for ($from; $from <= $to; $from++)
+		{
+			$vars[] = array(
+				'increment' => $from,
+			);
+		}
+		
+		return $vars ? $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, $vars) : '';
+	}
+	
 	/* FORM ACTIONS */
 	
 	public function form_submit()
@@ -194,12 +247,12 @@ class Dynamo
 			$this->EE->functions->redirect(stripslashes($this->EE->input->post('RET')));		
 		}
 		
-		$return = $this->EE->input->post('return', TRUE);
-		
-		foreach (array('ACT', 'XID', 'RET', 'site_id', 'return', 'submit') as $key)
+		if (AJAX_REQUEST && $this->EE->config->item('secure_forms') === 'y')
 		{
-			unset($_POST[$key]);
+			$this->EE->db->insert('security_hashes', array('date' => time() - 60, 'ip_address' => $this->EE->input->ip_address(), 'hash' => $this->EE->input->post('XID')));
 		}
+		
+		$return = $this->EE->input->post('return', TRUE);
 		
 		$_POST = $this->EE->security->xss_clean($_POST);
 		
@@ -220,6 +273,8 @@ class Dynamo
 				$_POST[$key] = implode('|', $value);
 			}
 		}
+		
+		$parameters = array();
 		
 		if ($keywords = $this->EE->input->post('keywords'))
 		{
@@ -246,21 +301,39 @@ class Dynamo
 			
 			if ($data['result_obj']->num_rows() === 0)
 			{
-				$_POST['entry_ids'] = array('X');
+				$parameters['entry_ids'] = array('X');
 			}
 			else
 			{
-				$_POST['entry_ids'] = array();
+				$parameters['entry_ids'] = array();
 				
 				foreach ($data['result_obj']->result() as $row)
 				{
-					$_POST['entry_ids'][] = $row->entry_id;
+					$parameters['entry_ids'][] = $row->entry_id;
 				}
 			}
 		}
 		
 		//clean, serialize, and encode the search parameter array for storage
-		$parameters = base64_encode(serialize($_POST));
+		
+		$clean = array('ACT', 'XID', 'RET', 'site_id', 'return', 'submit');
+		
+		foreach($_POST as $key => $value)
+		{
+			if (in_array($key, $clean))
+			{
+				continue;
+			}
+			
+			if ($value === "")
+			{
+				continue;
+			}
+			
+			$parameters[$key] = $value;
+		}
+		
+		$parameters = base64_encode(serialize($parameters));
 		
 		//get matching search if it already exists
 		$search_id = $this->EE->db->select('search_id')
@@ -288,7 +361,7 @@ class Dynamo
 	
 	private function search($search_id)
 	{
-		if ($search_id)
+		if ($search_id && strlen($search_id) === 32)
 		{
 			if (isset($this->EE->session->cache['dynamo'][$search_id]))
 			{
@@ -461,6 +534,24 @@ class Dynamo
 		$query->free_result();
 		
 		return $options;
+	}
+	
+	protected function variable_prefix(&$variables)
+	{
+		if ( ! $this->EE->TMPL->fetch_param('variable_prefix'))
+		{
+			return;
+		}
+		
+		foreach ($variables as &$row)
+		{
+			foreach (array_keys($row) as $key)
+			{
+				$row[$this->EE->TMPL->fetch_param('variable_prefix').$key] = $row[$key];
+				
+				unset($row[$key]);
+			}
+		}
 	}
 }
 
