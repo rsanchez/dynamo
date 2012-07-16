@@ -512,6 +512,66 @@ class Dynamo
 					
 					break;
 				
+				case 'playa':
+					
+					$field_settings = @unserialize(base64_decode($row->field_settings));
+					
+					$field_settings = array_merge(array(
+						'expired' => 'n',
+						'future' => 'y',
+						'channels' => array(),
+						'cats' => array(),
+						'authors' => array(),
+						'statuses' => array(),
+						'sort' => 'ASC',
+						'orderby'  => 'title',
+						'limit'    => '0',
+						'limitby'  => '',
+						'multi'    => 'y',
+					), $field_settings);
+					
+					require_once PATH_THIRD.'playa/helper.php';
+					
+					$helper = new Playa_Helper;
+				
+					$params = array(
+						'show_expired' => $field_settings['expired'] === 'y' ? 'yes' : '',
+						'show_future_entries' => $field_settings['future'] === 'y' ? 'yes' : '',
+						'channel_id' => $field_settings['channels'],
+						'category' => $field_settings['cats'],
+						'author_id' => $field_settings['authors'],
+						'status' => $field_settings['statuses']
+					);
+		
+					if ($field_settings['limit'])
+					{
+						$params['orderby'] = 'entry_date';
+						$params['sort'] = $field_settings['limitby'] === 'newest' ? 'DESC' : 'ASC';
+						$params['limit'] = $field_settings['limit'];
+					}
+					else
+					{
+						$params['orderby'] = $field_settings['orderby'];
+						$params['sort'] = $field_settings['sort'];
+					}
+		
+					$entries = $helper->entries_query($params);
+					
+					if ($field_settings['limitby'])
+					{
+						$helper->sort_entries($entries, $field_settings['sort'], $field_settings['orderby']);
+					}
+					
+					foreach ($entries as $entry)
+					{
+						$field_options[] = array(
+							'option_value' => $entry->title,
+							'option_name' => $entry->title,
+						);
+					}
+					
+					break;
+				
 				default:
 				
 					if ($row->field_list_items)
