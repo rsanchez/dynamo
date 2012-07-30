@@ -8,6 +8,8 @@ class Dynamo
 	public function __construct()
 	{
 		$this->EE =& get_instance();
+		
+		$this->EE->load->model('dynamo_model');
 	}
 	
 	/* TAGS */
@@ -32,7 +34,7 @@ class Dynamo
 			}
 		}
 		
-		$vars = $this->search($this->EE->TMPL->fetch_param('search_id'));
+		$vars = $this->EE->dynamo_model->get_search($this->EE->TMPL->fetch_param('search_id'));
 		
 		if ($this->EE->TMPL->fetch_param('dynamic_parameters'))
 		{
@@ -70,7 +72,7 @@ class Dynamo
 		
 		if ($option_fields)
 		{
-			$options = $this->get_options(array_keys($option_fields));
+			$options = $this->EE->dynamo_model->get_options(array_keys($option_fields));
 			
 			foreach ($options as $field_name => $field_options)
 			{
@@ -109,7 +111,7 @@ class Dynamo
 			$this->channel = new Channel;
 		}
 		
-		$_POST = array_merge($_POST, $this->search($this->EE->TMPL->fetch_param('search_id')));
+		$_POST = array_merge($_POST, $this->EE->dynamo_model->get_search($this->EE->TMPL->fetch_param('search_id')));
 		
 		$this->EE->TMPL->tagdata = $this->EE->TMPL->assign_relationship_data($this->EE->TMPL->tagdata);
 		
@@ -141,7 +143,7 @@ class Dynamo
 	
 	public function params()
 	{
-		$vars = $this->search($this->EE->TMPL->fetch_param('search_id'));
+		$vars = $this->EE->dynamo_model->get_search($this->EE->TMPL->fetch_param('search_id'));
 		
 		$data = array();
 		
@@ -159,15 +161,25 @@ class Dynamo
 	/**
 	 * Options
 	 *
-	 * {exp:dynamo:options field="field_name"}
-	 *    <option value="{option_value}">{option_name}</option>
+	 * {exp:dynamo:options field="field_name" selected="some value"}
+	 *    <option value="{option_value}"{selected}>{option_name}</option>
 	 * {/exp:dynamo:options}
 	 * 
 	 * @return string
 	 */
 	public function options()
 	{
-		return $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, array_shift($this->get_options($this->EE->TMPL->fetch_param('field'))));
+		$variables = array_shift($this->EE->dynamo_model->get_options($this->EE->TMPL->fetch_param('field')));
+		
+		foreach ($variables as &$row)
+		{
+			$selected = $row['option_value'] === $this->EE->TMPL->fetch_param('selected');
+			
+			$row['selected'] = $selected ? ' selected="selected"' : '';
+			$row['checked'] = $selected ? ' checked="checked"' : '';
+		}
+		
+		return $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, $variables);
 	}
 	
 	/**
@@ -179,7 +191,7 @@ class Dynamo
 	 */
 	public function prefetch_options()
 	{
-		$this->get_options(explode('|', $this->EE->TMPL->fetch_params('fields')));
+		$this->EE->dynamo_model->get_options(explode('|', $this->EE->TMPL->fetch_params('fields')));
 		
 		return '';
 	}
@@ -188,26 +200,24 @@ class Dynamo
 	{
 		$channels = explode('|', $this->EE->TMPL->fetch_param('channel'));
 		
-		if ($this->EE->TMPL->fetch_param('include'))
-		{
-			$include = explode('|', $this->EE->TMPL->fetch_param('include'));
-			
-			$this->EE->db->where_in('status', $include);
-		}
+		$include = $this->EE->TMPL->fetch_param('include') ? explode('|', $this->EE->TMPL->fetch_param('include')) : array();
 		
-		if ($this->EE->TMPL->fetch_param('exclude'))
-		{
-			$exclude = explode('|', $this->EE->TMPL->fetch_param('exclude'));
-			
-			$this->EE->db->where_not_in('status', $exclude);
-		}
+		$exclude = $this->EE->TMPL->fetch_param('exclude') ? explode('|', $this->EE->TMPL->fetch_param('exclude')) : array();
 		
-		$query = $this->EE->db->select('statuses.*')
-					->where_in('channel_name', $channels)
-					->join('channels', 'channels.status_group = statuses.group_id')
-					->get('statuses');
+		$result = $this->EE->dynamo_model->get_statuses($channels, $include, $exclude);
 		
-		$result = $query->result_array();
+		$this->variable_prefix($result);
+		
+		return $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, $result);
+	}
+	
+	public function member_groups()
+	{
+		$include = $this->EE->TMPL->fetch_param('include') ? explode('|', $this->EE->TMPL->fetch_param('include')) : array();
+		
+		$exclude = $this->EE->TMPL->fetch_param('exclude') ? explode('|', $this->EE->TMPL->fetch_param('exclude')) : array();
+		
+		$result = $this->EE->dynamo_model->get_member_groups($include, $exclude);
 		
 		$this->variable_prefix($result);
 		
@@ -333,268 +343,12 @@ class Dynamo
 			$parameters[$key] = $value;
 		}
 		
-		$parameters = base64_encode(serialize($parameters));
-		
-		//get matching search if it already exists
-		$search_id = $this->EE->db->select('search_id')
-					->from('dynamo')
-					->where('parameters', $parameters)
-					->get()
-					->row('search_id');
-		
-		//generate a new search id
-		if ( ! $search_id)
-		{
-			$search_id = $this->EE->functions->random('md5');
-		
-			$this->EE->db->insert('dynamo', array(
-				'search_id' => $search_id,
-				'date' => $this->EE->localize->now,
-				'parameters' => $parameters,
-			));
-		}
+		$search_id = $this->EE->dynamo_model->create_search($parameters);
 		
 		$this->EE->functions->redirect(rtrim($return, '/').'/'.$search_id);
 	}
 	
 	/* PRIVATE METHODS */
-	
-	private function search($search_id)
-	{
-		if ($search_id && strlen($search_id) === 32)
-		{
-			if (isset($this->EE->session->cache['dynamo'][$search_id]))
-			{
-				return $this->EE->session->cache['dynamo'][$search_id];
-			}
-			
-			//cleanup searches more than a day old
-			$this->EE->db->delete('dynamo', array('date <' => $this->EE->localize->now - 86400));
-			
-			$search_id = $this->EE->security->xss_clean($search_id);
-			
-			$query = $this->EE->db->select('parameters')
-					->from('dynamo')
-					->where('search_id', $search_id)
-					->limit(1)
-					->get();
-			
-			if ($query->num_rows())
-			{
-				//update search date
-				$this->EE->db->update('dynamo', array('date' => $this->EE->localize->now), array('search_id' => $search_id));
-				
-				if ($parameters = @unserialize(base64_decode($query->row('parameters'))))
-				{
-					return $this->EE->session->cache['dynamo'][$search_id] = $parameters;
-				}
-			}
-		}
-		
-		return array();
-	}
-	
-	/**
-	 * Get field options
-	 *
-	 * 	array(
-	 * 		'field_name' => array(
-	 * 			array(
-	 * 				array('option_value' => 'foo', 'option_name' => 'bar'),
-	 * 				array('option_value' => 'foo2', 'option_name' => 'bar2')
-	 * 			)
-	 * 			array(
-	 * 				array('option_value' => 'foo', 'option_name' => 'bar'),
-	 * 				array('option_value' => 'foo2', 'option_name' => 'bar2')
-	 * 			)
-	 * 		)
-	 * 		'field_name2' => array(
-	 * 			array(
-	 * 				array('option_value' => 'foo', 'option_name' => 'bar'),
-	 * 				array('option_value' => 'foo2', 'option_name' => 'bar2')
-	 * 			)
-	 * 			array(
-	 * 				array('option_value' => 'foo', 'option_name' => 'bar'),
-	 * 				array('option_value' => 'foo2', 'option_name' => 'bar2')
-	 * 			)
-	 * 		)
-	 * 	)
-	 * 
-	 * @param string|array $field_name a field name or an array of field names
-	 * 
-	 * @return array
-	 */
-	protected function get_options($field_names)
-	{
-		static $cache = array();
-		
-		if ( ! is_array($field_names))
-		{
-			$field_names = array($field_names);
-		}
-		
-		$keys = array_flip($field_names);
-		
-		//all the fields are in the cache
-		if ( ! array_diff_key($keys, $cache))
-		{
-			return array_intersect_key($cache, $keys);
-		}
-		
-		$this->EE->db->where_in('field_name', $field_names);
-		
-		$options = array();
-		
-		$query = $this->EE->db->select('field_name, field_type, field_list_items, field_settings, field_id')
-					->get('channel_fields');
-		
-		foreach ($query->result() as $row)
-		{
-			$field_options = array();
-			
-			switch($row->field_type)
-			{
-				case 'pt_checkboxes':
-				case 'pt_radio_buttons':
-				case 'pt_dropdown':
-				case 'pt_multiselect':
-				case 'pt_pill':
-					
-					$field_settings = @unserialize(base64_decode($row->field_settings));
-					
-					if (isset($field_settings['options']))
-					{
-						foreach ($field_settings['options'] as $option_value => $option_name)
-						{
-							$field_options[] = array(
-								'option_value' => $option_value,
-								'option_name' => $option_name,
-							);
-						}
-					}
-					
-					break;
-				case 'pt_switch':
-					
-					$field_settings = @unserialize(base64_decode($row->field_settings));
-					
-					if (is_array($field_settings))
-					{
-						$field_options = array(
-							array(
-								'option_value' => $field_settings['off_val'],
-								'option_name' => $field_settings['off_label'],
-							),
-							array(
-								'option_value' => $field_settings['on_val'],
-								'option_name' => $field_settings['on_label'],
-							),
-						);
-					}
-					
-					break;
-				case 'text':
-					
-					$channel_query = $this->EE->db->distinct()
-									->select('field_id_'.$row->field_id)
-									->where('field_id_'.$row->field_id.' !=', '')
-									->get('channel_data');
-					
-					foreach ($channel_query->result() as $row)
-					{
-						$field_options[] = array(
-							'option_value' => $row->{'field_id_'.$row->field_id},
-							'option_name' => $row->{'field_id_'.$row->field_id},
-						);
-					}
-					
-					$channel_query->free_result();
-					
-					break;
-				
-				case 'playa':
-					
-					$field_settings = @unserialize(base64_decode($row->field_settings));
-					
-					$field_settings = array_merge(array(
-						'expired' => 'n',
-						'future' => 'y',
-						'channels' => array(),
-						'cats' => array(),
-						'authors' => array(),
-						'statuses' => array(),
-						'sort' => 'ASC',
-						'orderby'  => 'title',
-						'limit'    => '0',
-						'limitby'  => '',
-						'multi'    => 'y',
-					), $field_settings);
-					
-					require_once PATH_THIRD.'playa/helper.php';
-					
-					$helper = new Playa_Helper;
-				
-					$params = array(
-						'show_expired' => $field_settings['expired'] === 'y' ? 'yes' : '',
-						'show_future_entries' => $field_settings['future'] === 'y' ? 'yes' : '',
-						'channel_id' => $field_settings['channels'],
-						'category' => $field_settings['cats'],
-						'author_id' => $field_settings['authors'],
-						'status' => $field_settings['statuses']
-					);
-		
-					if ($field_settings['limit'])
-					{
-						$params['orderby'] = 'entry_date';
-						$params['sort'] = $field_settings['limitby'] === 'newest' ? 'DESC' : 'ASC';
-						$params['limit'] = $field_settings['limit'];
-					}
-					else
-					{
-						$params['orderby'] = $field_settings['orderby'];
-						$params['sort'] = $field_settings['sort'];
-					}
-		
-					$entries = $helper->entries_query($params);
-					
-					if ($field_settings['limitby'])
-					{
-						$helper->sort_entries($entries, $field_settings['sort'], $field_settings['orderby']);
-					}
-					
-					foreach ($entries as $entry)
-					{
-						$field_options[] = array(
-							'option_value' => $entry->title,
-							'option_name' => $entry->title,
-						);
-					}
-					
-					break;
-				
-				default:
-				
-					if ($row->field_list_items)
-					{
-						foreach (preg_split('/[\r\n]+/', $row->field_list_items) as $option_value)
-						{
-							$field_options[] = array(
-								'option_value' => $option_value,
-								'option_name' => $option_value,
-							);
-						}
-					}
-					
-					break;
-			}
-			
-			$cache[$row->field_name] = $options[$row->field_name] = $field_options;
-		}
-		
-		$query->free_result();
-		
-		return $options;
-	}
 	
 	protected function variable_prefix(&$variables)
 	{
