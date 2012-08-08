@@ -26,6 +26,14 @@ class Dynamo
 			),
 		);
 		
+		foreach ($this->EE->TMPL->tagparams as $key => $value)
+		{
+			if (strncmp($key, 'separator:', 10) === 0 || strncmp($key, 'prefix:', 7) === 0)
+			{
+				$form['hidden_fields'][$key] = $value;
+			}
+		}
+		
 		foreach (array('id', 'class', 'onsubmit', 'name') as $key)
 		{
 			if ($this->EE->TMPL->fetch_param($key))
@@ -47,15 +55,10 @@ class Dynamo
 			}
 		}
 		
-		//added so you could do array checkboxes with {if {selected:category="10"}}{/if}
-		foreach ($this->EE->TMPL->var_single as $var)
+		//pre-fetch all the options in one query
+		if (preg_match_all('/{exp:dynamo:options .*?field="(.*?)"/', $this->EE->TMPL->tagdata, $matches))
 		{
-			if (preg_match('/^selected:(.+?)\s*==?\s*([\042\047])?(.*)\\2$/', $var, $match))
-			{
-				$array = (strpos($vars[$match[1]], '|') !== FALSE) ? explode('|', $vars[$match[1]]) : array($vars[$match[1]]);
-				
-				$vars[$var] = (in_array($match[3], $array)) ? 1 : 0;
-			}
+			$this->EE->dynamo_model->get_options($matches[1]);
 		}
 		
 		$option_fields = array();
@@ -156,6 +159,15 @@ class Dynamo
 		}
 		
 		return (count($data) > 0) ? $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, $data) : $this->EE->TMPL->no_results();
+	}
+	
+	public function selected()
+	{
+		$value = $this->EE->TMPL->fetch_param('value');
+		
+		$in = preg_split('/[\|&]{1,2}/', $this->EE->TMPL->fetch_param('in'));
+		
+		return in_array($value, $in) ? '1' : 0;
 	}
 	
 	/**
@@ -266,10 +278,10 @@ class Dynamo
 		
 		$_POST = $this->EE->security->xss_clean($_POST);
 		
-		//convert some of POST like arrays -> pipe delimited lists
+		//convert POST arrays -> pipe delimited lists and add a prefix if there is one
 		foreach ($_POST as $key => $value)
 		{
-			if (substr($key, 0, 7) !== 'search:' && is_array($value))
+			if (is_array($value))
 			{
 				foreach ($value as $_key => $_value)
 				{
@@ -280,7 +292,52 @@ class Dynamo
 					}
 				}
 				
-				$_POST[$key] = implode('|', $value);
+				$separator = '|';
+				
+				if (isset($_POST['separator:'.$key]))
+				{
+					$separator = $this->EE->input->post('separator:'.$key);
+					
+					unset($_POST['separator:'.$key]);
+					
+					if (strncmp($key, 'search:', 7) === 0)
+					{
+						if ($separator === '&')
+						{
+							$separator = '&&';
+						}
+						
+						if ($separator !== '&&')
+						{
+							$separator = '|';
+						}
+					}
+					elseif ($separator !== '&')
+					{
+						$separator = '|';
+					}
+				}
+				
+				$_POST[$key] = implode($separator, $value);
+			}
+			
+			if (isset($_POST['prefix:'.$key]))
+			{
+				$valid_prefixes = array('not ', '=');
+				
+				$prefix = $this->EE->input->post('prefix:'.$key);
+				
+				unset($_POST['prefix:'.$key]);
+				
+				if ($prefix === 'not')
+				{
+					$prefix = 'not ';
+				}
+				
+				if (in_array($prefix, $valid_prefixes))
+				{
+					$_POST[$key] = $prefix.$_POST[$key];
+				}
 			}
 		}
 		

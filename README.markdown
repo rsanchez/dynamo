@@ -21,8 +21,8 @@ Use this form to submit your dynamic parameters. It will add your search paramet
 			<option value="50">50</option>
 		</select>
 		<select name="category[]" multiple="multiple">
-			<option value="1">Dogs</option>
-			<option value="2">Cat</option>
+			<option value="1"{if {exp:dynamo:selected value="1" in="{category}"} selected="selected"{/if}>Dogs</option>
+			<option value="2"{if {exp:dynamo:selected value="2" in="{category}"} selected="selected"{/if}>Cats</option>
 		</select>
 		<input type="submit">
 	{/exp:dynamo:form}
@@ -30,14 +30,32 @@ Use this form to submit your dynamic parameters. It will add your search paramet
 ### Form Parameters
 
 **return**
+
 This is the location of your dynamo:entries template. The search_id will be added as the last segment.
 
 	return="site/entries"
 
 **search_id**
+
 If you are displaying a form on your results page, and wish to show the submitted values.
 
 	dynamic_parameters="search:your_custom_field|limit"
+
+**prefix:your_field_name**
+
+You can add a prefix to your dynamic parameter. There are two valid prefixes, `not ` and `=`.
+
+`not ` is valid for: `entry_id`, `channel`, `category`, `search:your_field_name`, `group_id`, `status`, `url_title`, `username`, `author_id`, and `category_group`.
+
+`=` is valid for `search:your_field_name` and triggers *exact* matching.
+
+	{exp:dynamo:form prefix:channel="not" prefix:search:your_field_name="="}
+
+**separator:your_field_name**
+
+You can change the default separator, which is `|`, to `&` with this parameter. The `&` separator is only valid for `search:your_field_name` and `category`;
+
+	{exp:dynamo:form separator:category="&"}
 
 ### Form Inputs
 
@@ -92,3 +110,43 @@ If you add a valid search_id to the form tag, it will inherit all of the search'
 	{exp:dynamo:entries channel="entries" dynamic_parameters="search:your_custom_field|limit" search_id="{segment_3}"}
 		<a href="{entry_id_path=site/entry}">{title}</a>
 	{/exp:dynamo:entries}
+
+## Helper Tags
+
+### Options
+Use this tag pair to display a dropdown in your form showing *all* valid options for the following fieldtypes: Text, Select Dropdown, Checkboxes, Multi Select, Radio Buttons, P&T Checkboxes, P&T Radio Buttons, P&T Dropdown, P&T Multiselect, P&T Pill, P&T Switch and Playa.
+
+	<select name="your_field_name">
+	{exp:dynamo:options field="your_field_name" selected="x"}
+		<option value="{option_value}"{selected}>{option_name}</option>
+	{/exp:dynamo:options}
+	</select>
+
+### Selected
+Use this to show when a value is in an array of selections.
+	
+	{exp:dynamo:form channel="entries" dynamic_parameters="category" search_id="{segment_3}"}
+		<select name="category[]">
+		{exp:channel:categories channel="entries" style="linear"}
+			<option value="{category_id}"{if {exp:dynamo:selected value="{category_id}" in="{category}"}} selected="selected"{/if}>{category_name}</option>
+		{/exp:channel:entries}
+		</select>
+	{/exp:dynamo:form}
+
+### Statuses
+Use this tag pair to display valid statuses from the specified channel(s). The `include` and `exclude` parameters are optional.
+
+	<select name="status">
+	{exp:dynamo:statuses channel="entries" include="open" exclude="closed" variable_prefix="statuses:"}
+		<option value="{statuses:status}"{if statuses:status == status} selected="selected"{/if}>{statuses:status}</option>
+	{/exp:dynamo:statuses}
+	</select>
+
+### Member Groups
+Use this tag pair to display valid member groups. The `include` and `exclude` parameters are optional.
+
+	<select name="status">
+	{exp:dynamo:member_groups include="1|5" exclude="6|7" variable_prefix="group:"}
+		<option value="{group:group_id}"{if group:group_id == group_id} selected="selected"{/if}>{group:group_title}</option>
+	{/exp:dynamo:member_groups}
+	</select>
