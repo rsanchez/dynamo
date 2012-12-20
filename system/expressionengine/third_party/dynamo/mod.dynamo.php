@@ -113,8 +113,20 @@ class Dynamo
 		
 			$this->channel = new Channel;
 		}
+
+		$search_params = $this->EE->dynamo_model->get_search($this->EE->TMPL->fetch_param('search_id'));
 		
-		$_POST = array_merge($_POST, $this->EE->dynamo_model->get_search($this->EE->TMPL->fetch_param('search_id')));
+		if (isset($search_params['start_on']))
+		{
+			$search_params['start_on'] = $this->EE->localize->decode_date('%Y-%m-%d %H:%i', strtotime($search_params['start_on']));
+		}
+		
+		if (isset($search_params['stop_before']))
+		{
+			$search_params['stop_before'] = $this->EE->localize->decode_date('%Y-%m-%d %H:%i', strtotime($search_params['stop_before']));
+		}
+		
+		$_POST = array_merge($_POST, $search_params);
 		
 		$this->EE->TMPL->tagdata = $this->EE->TMPL->assign_relationship_data($this->EE->TMPL->tagdata);
 		
