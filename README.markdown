@@ -113,6 +113,14 @@ If you add a valid search_id to the form tag, it will inherit all of the search'
 
 ## Helper Tags
 
+### Search Params
+Print out the params related to a search. For use *outside* of an `exp:dynamo:form` tag. The `exp:dynamo:form` tag parses all the tags of `exp:dynamo:search_params` natively.
+
+	{exp:dynamo:search_params search_id="{segment_3}" dynamic_parameters="limit|start_on"}
+		{limit}
+		{start_on}
+	{/exp:dynamo:search_params}
+
 ### Options
 Use this tag pair to display a dropdown in your form showing *all* valid options for the following fieldtypes: Text, Select Dropdown, Checkboxes, Multi Select, Radio Buttons, P&T Checkboxes, P&T Radio Buttons, P&T Dropdown, P&T Multiselect, P&T Pill, P&T Switch and Playa.
 
