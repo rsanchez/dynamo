@@ -42,7 +42,7 @@ class Dynamo
 			}
 		}
 		
-		$vars = $this->EE->dynamo_model->get_search($this->EE->TMPL->fetch_param('search_id'));
+		$vars = $this->EE->dynamo_model->get_search($this->EE->TMPL->fetch_param('search_id', end($this->EE->uri->segment_array())));
 		
 		if ($this->EE->TMPL->fetch_param('dynamic_parameters'))
 		{
