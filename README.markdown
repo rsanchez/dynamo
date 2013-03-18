@@ -37,7 +37,22 @@ This is the location of your dynamo:entries template. The search_id will be adde
 **search_id**
 If you are displaying a form on your results page, and wish to show the submitted values.
 
-	dynamic_parameters="search:your_custom_field|limit"
+	search_id="{segment_3}"
+
+**dynamic_parameters**
+Which parameters are allowed.
+
+	dynamic_parameters="search:your_custom_field|limit""
+
+**secure_action**
+Set the form action attribute to an HTTPS url.
+
+	secure_action="yes"
+
+**search_id**
+Set the form return url to HTTPS.
+
+	secure_return="yes"
 
 ### Form Inputs
 

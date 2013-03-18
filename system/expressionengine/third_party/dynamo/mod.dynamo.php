@@ -31,6 +31,14 @@ class Dynamo
 				$form[$key] = $this->EE->TMPL->fetch_param($key);
 			}
 		}
+
+		if ($this->EE->TMPL->fetch_param('secure_action') === 'yes') {
+			$form['action'] = str_replace('http://', 'https://', $this->EE->functions->create_url($this->EE->uri->uri_string()));
+		}
+
+		if ($this->EE->TMPL->fetch_param('secure_return') === 'yes') {
+			$form['hidden_fields']['secure_return'] = true;
+		}
 		
 		$vars = $this->search($this->EE->TMPL->fetch_param('search_id'));
 		
@@ -244,8 +252,10 @@ class Dynamo
 		}
 		
 		$return = $this->EE->input->post('return', TRUE);
+
+		$secure_return = $this->EE->input->post('secure_return');
 		
-		foreach (array('ACT', 'XID', 'RET', 'site_id', 'return', 'submit') as $key)
+		foreach (array('ACT', 'XID', 'RET', 'site_id', 'return', 'submit', 'secure_return') as $key)
 		{
 			unset($_POST[$key]);
 		}
@@ -329,8 +339,15 @@ class Dynamo
 				'parameters' => $parameters,
 			));
 		}
+
+		$return = $this->EE->functions->create_url(rtrim($return, '/').'/'.$search_id);
+
+		if ($secure_return)
+		{
+			$return = str_replace('http://', 'https://', $return);
+		}
 		
-		$this->EE->functions->redirect(rtrim($return, '/').'/'.$search_id);
+		$this->EE->functions->redirect($return);
 	}
 	
 	/* PRIVATE METHODS */
