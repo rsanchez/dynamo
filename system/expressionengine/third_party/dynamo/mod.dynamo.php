@@ -109,9 +109,37 @@ class Dynamo
 		}
 		
 		return $this->EE->functions->form_declaration($form)
-			.$this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, array($vars))
+			.$this->EE->TMPL->parse_variables_row($this->EE->TMPL->tagdata, $vars)
 			.form_close();
 	}
+
+    public function search_params()
+    {
+        $vars = $this->EE->dynamo_model->get_search($this->EE->TMPL->fetch_param('search_id'));
+        
+        if ($this->EE->TMPL->fetch_param('dynamic_parameters'))
+        {
+            foreach (explode('|', $this->EE->TMPL->fetch_param('dynamic_parameters')) as $key)
+            {
+                if ( ! isset($vars[$key]))
+                {
+                    $vars[$key] = '';
+                }
+            }
+        }
+        
+        if ( ! isset($vars['keywords']))
+        {
+            $vars['keywords'] = '';
+        }
+        
+        foreach (array_keys($vars) as $key)
+        {
+            $vars['dynamo:'.$key] = $vars[$key];
+        }
+        
+        return $this->EE->TMPL->parse_variables_row($this->EE->TMPL->tagdata, $vars);
+    }
 	
 	public function entries()
 	{
