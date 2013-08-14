@@ -164,24 +164,27 @@ class Dynamo
 		
 		$_POST = array_merge($_POST, $search_params);
 		
-		$this->EE->TMPL->tagdata = $this->EE->TMPL->assign_relationship_data($this->EE->TMPL->tagdata);
-		
-		if (count($this->EE->TMPL->related_markers) > 0)
+		if (version_compare(APP_VER, '2.6', '<'))
 		{
-			foreach ($this->EE->TMPL->related_markers as $marker)
+			$this->EE->TMPL->tagdata = $this->EE->TMPL->assign_relationship_data($this->EE->TMPL->tagdata);
+
+			if (count($this->EE->TMPL->related_markers) > 0)
 			{
-				if ( ! isset($this->EE->TMPL->var_single[$marker]))
+				foreach ($this->EE->TMPL->related_markers as $marker)
 				{
-					$this->EE->TMPL->var_single[$marker] = $marker;
+					if ( ! isset($this->EE->TMPL->var_single[$marker]))
+					{
+						$this->EE->TMPL->var_single[$marker] = $marker;
+					}
 				}
 			}
-		}
 
-		if ($this->EE->TMPL->related_id)
-		{
-			$this->EE->TMPL->var_single[$this->EE->TMPL->related_id] = $this->EE->TMPL->related_id;
-			
-			$this->EE->TMPL->related_id = '';
+			if ($this->EE->TMPL->related_id)
+			{
+				$this->EE->TMPL->var_single[$this->EE->TMPL->related_id] = $this->EE->TMPL->related_id;
+				
+				$this->EE->TMPL->related_id = '';
+			}
 		}
 		
 		if (isset($_POST['entry_ids']))
