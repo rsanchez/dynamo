@@ -108,7 +108,8 @@ class Dynamo
 						
 						break;
 					case 'pt_switch':
-						
+					case 'fieldpack_switch':
+
 						$field_settings = @unserialize(base64_decode($row->field_settings));
 						
 						if (is_array($field_settings))
