@@ -93,6 +93,11 @@ class Dynamo
 					case 'pt_dropdown':
 					case 'pt_multiselect':
 					case 'pt_pill':
+					case 'fieldpack_checkboxes':
+					case 'fieldpack_radio_buttons':
+					case 'fieldpack_dropdown':
+					case 'fieldpack_multiselect':
+					case 'fieldpack_pill':
 						
 						$field_settings = @unserialize(base64_decode($row->field_settings));
 						
@@ -103,7 +108,8 @@ class Dynamo
 						
 						break;
 					case 'pt_switch':
-						
+					case 'fieldpack_switch':
+
 						$field_settings = @unserialize(base64_decode($row->field_settings));
 						
 						if (is_array($field_settings))
@@ -268,7 +274,7 @@ class Dynamo
 		//convert some of POST like arrays -> pipe delimited lists
 		foreach ($_POST as $key => $value)
 		{
-			if (substr($key, 0, 7) !== 'search:' && is_array($value))
+			if (is_array($value))
 			{
 				foreach ($value as $_key => $_value)
 				{
