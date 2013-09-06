@@ -268,7 +268,7 @@ class Dynamo
 		//convert some of POST like arrays -> pipe delimited lists
 		foreach ($_POST as $key => $value)
 		{
-			if (substr($key, 0, 7) !== 'search:' && is_array($value))
+			if (substr($key, 0, 7) === 'search:' && is_array($value))
 			{
 				foreach ($value as $_key => $_value)
 				{
