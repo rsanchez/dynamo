@@ -93,6 +93,11 @@ class Dynamo
 					case 'pt_dropdown':
 					case 'pt_multiselect':
 					case 'pt_pill':
+					case 'fieldpack_checkboxes':
+					case 'fieldpack_radio_buttons':
+					case 'fieldpack_dropdown':
+					case 'fieldpack_multiselect':
+					case 'fieldpack_pill':
 						
 						$field_settings = @unserialize(base64_decode($row->field_settings));
 						
