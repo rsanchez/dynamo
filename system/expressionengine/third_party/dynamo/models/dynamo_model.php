@@ -180,6 +180,11 @@ class Dynamo_model extends CI_Model
 				case 'pt_dropdown':
 				case 'pt_multiselect':
 				case 'pt_pill':
+				case 'fieldpack_checkboxes':
+				case 'fieldpack_radio_buttons':
+				case 'fieldpack_dropdown':
+				case 'fieldpack_multiselect':
+				case 'fieldpack_pill':
 					
 					$field_settings = @unserialize(base64_decode($row->field_settings));
 					
@@ -196,6 +201,7 @@ class Dynamo_model extends CI_Model
 					
 					break;
 				case 'pt_switch':
+				case 'fieldpack_switch':
 					
 					$field_settings = @unserialize(base64_decode($row->field_settings));
 					
