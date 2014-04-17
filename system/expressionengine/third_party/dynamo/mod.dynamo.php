@@ -245,6 +245,15 @@ class Dynamo
 		return (count($data) > 0) ? $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, $data) : $this->EE->TMPL->no_results();
 	}
 	
+	public function param()
+	{
+		$vars = $this->search($this->EE->TMPL->fetch_param('search_id'));
+
+		$name = $this->EE->TMPL->fetch_param('name');
+
+		return isset($vars[$name]) ? $vars[$name] : $this->EE->TMPL->fetch_param('default', '');
+	}
+	
 	/* FORM ACTIONS */
 	
 	public function form_submit()
