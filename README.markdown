@@ -1,5 +1,9 @@
 # Dynamo #
 
+**NOTICE:** This add-on is not currently under active development. Since it was authored, ExpressionEngine has improved the native dynamic parameters functionality by allowing $_GET / query string variables to be used as dynamic parameters. Furthermore, with [this technique](https://ellislab.com/expressionengine/user-guide/add-ons/channel/dynamic_parameters.html#13604), you can add pagination to to query-string-based dynamic parameters.
+
+## Introduction
+
 Makes Dynamic Parameters behave more like the Search module. See <http://expressionengine.com/user_guide/modules/channel/dynamic_parameters.html>
 
 Until now, it was impossible to have your dynamic parameters persist when using pagination. To alleviate this, Dynamo takes your dynamic parameters and stores them in the database, and assigns a search_id, which can be used in to retrieve your filtered results, without having to perform another POST request with your parameters.
