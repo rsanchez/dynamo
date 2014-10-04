@@ -264,7 +264,7 @@ class Dynamo
 			return;
 		}
 		
-		if ( ! $this->EE->security->secure_forms_check($this->EE->input->post('XID')))
+		if (version_compare(APP_VER, '2.8.0', '<') && ! $this->EE->security->secure_forms_check($this->EE->input->post('XID')))
 		{
 			$this->EE->functions->redirect(stripslashes($this->EE->input->post('RET')));		
 		}
@@ -273,7 +273,7 @@ class Dynamo
 
 		$secure_return = $this->EE->input->post('secure_return');
 		
-		foreach (array('ACT', 'XID', 'RET', 'site_id', 'return', 'submit', 'secure_return') as $key)
+		foreach (array('ACT', 'XID', 'RET', 'site_id', 'return', 'submit', 'secure_return', 'csrf_token') as $key)
 		{
 			unset($_POST[$key]);
 		}
